@@ -689,7 +689,7 @@ Arguments:
     -NewPortMappingDescription      only if Port mapping not exists
     -NewLeaseDuration               only if Port mapping not exists
 
-  --UploadSSLCert                   List specific Port mapping
+  --UploadSSLCert                   Upload SSL Certificate
 Arguments:
     -SSLCertFile                    required (Private and Certificate)
 	-CertPassword
@@ -706,7 +706,7 @@ __parse_argument() {
 
 __version() {
 	__log "${_SCRIPT_}"
-	__log "v0.1.0"
+	__log "v0.1.1"
 }
 
 __upper_case() {
