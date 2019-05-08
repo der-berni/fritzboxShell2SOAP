@@ -12,6 +12,7 @@ INTERACTIVE=0
 NOCACHE=1
 CACHEDIR="/tmp/${_SCRIPT_%.*}"
 CACHEDIRCREATED=0
+CONFIGFILE="${_SCRIPT_%.*}.conf"
 
 soap_nonce=
 soap_realm=
@@ -451,6 +452,22 @@ __addPortMapping() {
 	return 0
 }
 
+__reboot() {
+	local _silent=$1
+	__resetSOAP
+	
+	soap_ServiceControl="deviceconfig"
+	soap_ActionName="Reboot"
+	
+	__doAction ${_silent}
+	local _ret="$?"
+	if [ "${_ret}" != "0" ]; then
+		return "${_ret}"
+	fi
+	
+	return 0
+}
+
 __uploadSSLCert() {
 	local _silent=1
 	__resetSOAP
@@ -539,6 +556,13 @@ __process() {
 			FB_SOAP_PORT="$2"
 			shift
 			;;
+		-f)
+			CONFIGFILE="$2"
+			shift
+			;;
+		--CreateConfig | -cc)
+			_CMD="CreateConfig"
+			;;
 		--GetSpecificPortMappingEntry)
 			_CMD="GetSpecificPortMappingEntry"
 			;;
@@ -576,6 +600,9 @@ __process() {
 			CertPassword="$2"
 			shift
 			;;
+		-reboot)
+			_CMD="reboot"
+			;;
 		*)
 			if __startswith "$1" "-New"; then
 				__parse_argument "$1" "$2"
@@ -600,12 +627,20 @@ __process() {
 			if ! __command_exists "${_var}" ; then __err "Command not found: ${_var}"; __log "Pleace check dependencies!"; return 1; fi
 		done
 		
+		if [ "${_CMD}" != "CreateConfig" ]; then
+			__readconfig
+		fi
+		
 		if [ "${NOCACHE}" = "0" -a ! -e "${CACHEDIR}" ]; then
 			mkdir -p "${CACHEDIR}"
 			CACHEDIRCREATED=1
 		fi
 	fi
 	
+	if [ "${_CMD}" = "CreateConfig" ]; then
+		__writeconfig
+		return "$?"
+	fi
 	if [ "${_CMD}" = "Action" ]; then
 		__doAction
 		return "$?"
@@ -635,6 +670,10 @@ __process() {
 		__uploadSSLCert
 		return "$?"
 	fi
+	if [ "${_CMD}" = "reboot" ]; then
+		__reboot
+		return "$?"
+	fi
 }
 
 __showhelp() {
@@ -643,58 +682,106 @@ __log "Usage: ${_SCRIPT_} command action arguments
 example: ${_SCRIPT_} --debug --action --ServiceControl \"wanipconnSCPD\" --ActionName \"GetNATRSIPStatus\" --argument1 \"value1\"
 example: ${_SCRIPT_} --ShowArguments GetSpecificPortMappingEntry
 
-Commands:
+# Commands #
   --help, -h                        Show this help message.
   --version, -v                     Show version info.
   --debug                           Output debug info.
   --no-color                        Do not output color text.
 
-  --cache                           Do not cache files. By default: ${NOCACHE}
+  --cache                           Cache files. By default: ${NOCACHE}
   -cachedir                         Set cache Directory for temp files. By default: ${CACHEDIR}
 
   -fb-ip, -ip                       Fritzbox IP-Address/Hostname. By Default: 192.168.178.1
   -fb-user, -u                      Fritzbox User. By Default: admin
   -fb-pass, -p                      Fritzbox Password required
   -fb-soap-port, -sp                By Default: 49000
+  
+  -f                                Config file. By default: ${CONFIGFILE}
+  --CreateConfig | -cc              Write config file.
 
-Actions:
+
+
+# Actions #
   --ShowServiceList, -ssl           Get list of Services
 
   --ShowActionList, -sal            Get list of Actions for Service
-Arguments:
+    Arguments:
     -ServiceControl                 See ShowServiceList
 
   --ShowArguments, -sa              Get list of Arguments for action
-Arguments:
+    Arguments:
     -ServiceControl                 See ShowServiceList
     -ActionName                     See ShowActionList
 
   --Action, -a                      Do Action
-Arguments:
+    Arguments:
     -ServiceControl                 See ShowServiceList
     -ActionName                     See ShowActionList
     -Arguments as KeyValuePair      See ShowArguments, direction <in> is required
 
-ShortCuts
+
+
+# ShortCuts #
+  --reboot                          Reboot Fritzbox
+
   --GetSpecificPortMappingEntry     List specific Port mapping
-Arguments:
+    Arguments:
     -NewExternalPort                required
 
   --AddPortMapping                  Add or Update Port mapping
-Arguments:
+    Arguments:
     -NewExternalPort                required
     -NewInternalPort                only if Port mapping not exists
     -NewInternalClient              only if Port mapping not exists
-    -NewEnabled                     only if Port mapping not exists | if Empty and Port mapping exists it will toggle 
+    -NewEnabled                     only if Port mapping not exists | if empty and port mapping exists, the port will be toogled
     -NewPortMappingDescription      only if Port mapping not exists
     -NewLeaseDuration               only if Port mapping not exists
 
   --UploadSSLCert                   Upload SSL Certificate
-Arguments:
+    Arguments:
     -SSLCertFile                    required (Private and Certificate)
 	-CertPassword
 
   "
+}
+
+__readconfig() {
+	
+	#secured read config
+	
+	__log "CONFIGFILE" "${CONFIGFILE}"
+	
+	if [ -f "${CONFIGFILE}" ]; then
+		while read _line; do
+			if ! __startswith "${_line}" "#"; then
+				if __contains "${_line}" "="; then
+					local _key=$(echo -n "${_line}" | awk -F '=' '{print $1}')
+					local _val=$(echo -n "${_line}" | awk -F '=' '{print $2}')
+					
+					#Whitelist
+					case "${_key}" in
+					  FB_IP|FB_USER|FB_PASS|FB_SOAP_PORT|NOCACHE|CACHEDIR)
+						__parse_argument "${_key}" "${_val}"
+						;;
+					  *)
+						__err "Error parsing config file ${CONFIGFILE}." "Parameter ""${_key}"" not allowed!"
+						;;
+					esac
+				fi
+			fi
+		done < "${CONFIGFILE}"
+	fi
+}
+
+__writeconfig() {
+
+	echo "FB_IP=${FB_IP}" > "${CONFIGFILE}"
+	echo "FB_USER=${FB_USER}" >> "${CONFIGFILE}"
+	echo "FB_PASS=${FB_PASS}" >> "${CONFIGFILE}"
+	echo "FB_SOAP_PORT=${FB_SOAP_PORT}" >> "${CONFIGFILE}"
+	echo "NOCACHE=${NOCACHE}" >> "${CONFIGFILE}"
+	echo "CACHEDIR=${CACHEDIR}" >> "${CONFIGFILE}"
+	echo "" >> "${CONFIGFILE}"
 }
 
 __parse_argument() {
@@ -706,7 +793,7 @@ __parse_argument() {
 
 __version() {
 	__log "${_SCRIPT_}"
-	__log "v0.1.1"
+	__log "v0.1.2"
 }
 
 __upper_case() {

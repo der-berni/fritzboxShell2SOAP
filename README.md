@@ -12,64 +12,80 @@ Script can output:
 - Get list of Arguments for Action
 
 Some Shortcuts:
+- Reboot Fritzbox
 - List specific Port mapping
 - Add or Update Port mapping
 - Upload SSL Certificate
 
+# Change Log
+
+**v0.1.2**
+- added ShortCut reboot
+- added the possibility of a config file
+
 ## Usage
 ```
-Usage: ${_SCRIPT_} command action arguments
-example: ${_SCRIPT_} --debug --action --ServiceControl "wanipconnSCPD" --ActionName "GetNATRSIPStatus" --argument1 "value1"
-example: ${_SCRIPT_} --ShowArguments GetSpecificPortMappingEntry
+Usage: fritzboxShell2SOAP.sh command action arguments
+example: fritzboxShell2SOAP.sh --debug --action --ServiceControl "wanipconnSCPD" --ActionName "GetNATRSIPStatus" --argument1 "value1"
+example: fritzboxShell2SOAP.sh --ShowArguments GetSpecificPortMappingEntry
 
-Commands:
+# Commands #
   --help, -h                        Show this help message.
   --version, -v                     Show version info.
   --debug                           Output debug info.
   --no-color                        Do not output color text.
 
-  --cache                           Do not cache files. By default: 1
+  --cache                           Cache files. By default: 1
   -cachedir                         Set cache Directory for temp files. By default: /tmp/fritzboxShell2SOAP
 
   -fb-ip, -ip                       Fritzbox IP-Address/Hostname. By Default: 192.168.178.1
   -fb-user, -u                      Fritzbox User. By Default: admin
   -fb-pass, -p                      Fritzbox Password required
   -fb-soap-port, -sp                By Default: 49000
+  
+  -f                                Config file. By default: fritzboxShell2SOAP.conf
+  --CreateConfig | -cc              Write config file.
 
-Actions:
+
+
+# Actions #
   --ShowServiceList, -ssl           Get list of Services
 
   --ShowActionList, -sal            Get list of Actions for Service
-Arguments:
+    Arguments:
     -ServiceControl                 See ShowServiceList
 
   --ShowArguments, -sa              Get list of Arguments for action
-Arguments:
+    Arguments:
     -ServiceControl                 See ShowServiceList
     -ActionName                     See ShowActionList
 
   --Action, -a                      Do Action
-Arguments:
+    Arguments:
     -ServiceControl                 See ShowServiceList
     -ActionName                     See ShowActionList
     -Arguments as KeyValuePair      See ShowArguments, direction <in> is required
 
-ShortCuts
+
+
+# ShortCuts #
+  --reboot                          Reboot Fritzbox
+
   --GetSpecificPortMappingEntry     List specific Port mapping
-Arguments:
+    Arguments:
     -NewExternalPort                required
 
   --AddPortMapping                  Add or Update Port mapping
-Arguments:
+    Arguments:
     -NewExternalPort                required
     -NewInternalPort                only if Port mapping not exists
     -NewInternalClient              only if Port mapping not exists
-    -NewEnabled                     only if Port mapping not exists | if Empty and Port mapping exists it will toggle 
+    -NewEnabled                     only if Port mapping not exists | if empty and port mapping exists, the port will be toogled
     -NewPortMappingDescription      only if Port mapping not exists
     -NewLeaseDuration               only if Port mapping not exists
 
   --UploadSSLCert                   Upload SSL Certificate
-Arguments:
+    Arguments:
     -SSLCertFile                    required (Private and Certificate)
 	-CertPassword
 ```
